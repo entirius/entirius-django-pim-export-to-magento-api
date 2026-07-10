@@ -1,0 +1,3 @@
+from django_pim_export_to_magento_api.admin.channel import ChannelAdmin
+from django_pim_export_to_magento_api.admin.export_in_magento import ExportInMagentoAdmin
+from django_pim_export_to_magento_api.admin.magento_store import MagentoStoreAdmin

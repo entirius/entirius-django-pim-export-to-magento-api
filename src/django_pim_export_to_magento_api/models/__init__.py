@@ -1,0 +1,3 @@
+from django_pim_export_to_magento_api.models.channel import Channel
+from django_pim_export_to_magento_api.models.export_in_magento import ExportInMagento
+from django_pim_export_to_magento_api.models.magento_store import MagentoStore
