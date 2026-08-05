@@ -21,10 +21,11 @@ class MagentoStoreAdmin(ModelAdmin):
         "pictures",
         "products",
         "prices",
+        "check_prices",
     )
 
     fieldsets = (
         (None, {"fields": ("channel", "store_view_code", "magento_pk", "default")}),
         ("Regional", {"fields": ("language", "currency", "country")}),
-        ("What to export?", {"fields": ("pictures", "products", "prices")}),
+        ("What to export?", {"fields": ("pictures", "products", "prices", "check_prices")}),
     )
