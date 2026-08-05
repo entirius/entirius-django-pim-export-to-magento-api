@@ -1,6 +1,6 @@
 [project]
 name = "entirius-django-pim-export-to-magento-api"
-version = "2.0.0"
+version = "2.1.0"
 description = "Products, prices, pictures, and attributes export from PIM to Magento via the Magento REST API"
 authors = [{ name = "Entirius" }]
 readme = "README.md"
