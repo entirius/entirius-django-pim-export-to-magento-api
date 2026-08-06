@@ -25,6 +25,11 @@ class MagentoStore(models.Model):
     )
     products = models.BooleanField(default=False)
     prices = models.BooleanField(default=False)
+    check_prices = models.BooleanField(
+        default=False,
+        help_text="During product export skip this store view (and drop its website) when the product has no price "
+        "in this currency and country",
+    )
     objects = models.Manager()
 
     def __str__(self) -> str:

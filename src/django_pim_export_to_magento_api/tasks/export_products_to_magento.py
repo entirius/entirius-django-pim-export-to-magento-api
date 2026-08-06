@@ -44,7 +44,34 @@ class ExportProductsToMagento(MagentoExporter):
 
     def __init__(self, *args, **kwargs):
         self.product_class = kwargs.pop("product_class", None)
+        # (channel_idx, currency_iso3, country_iso2) -> set of SKUs that have a price.
+        # Built in bulk so check_prices never queries prices per product in the loop.
+        self.priced_skus_cache: dict[tuple[str, str, str], set[str]] = {}
+        self._current_store_priced_skus: set[str] = set()
         super().__init__(*args, **kwargs)
+
+    def _priced_skus(self, channel_idx: str, currency_iso3: str, country_iso2: str) -> set[str]:
+        key = (channel_idx, currency_iso3, country_iso2)
+        if key in self.priced_skus_cache:
+            return self.priced_skus_cache[key]
+
+        skus = [self.product_id] if self.product_id else []
+        prices = get_price_qs_by_latest_pricelist(
+            channel_idx, currency=currency_iso3, country=country_iso2, skus=skus
+        ).prefetch_related("product")
+        priced: set[str] = set()
+        for price in prices:
+            price: PricePM
+            price_gross = (
+                price.special_gross_value
+                if price.is_egible_for_special_price and price.special_gross_value
+                else price.gross_value
+            )
+            if price_gross:
+                priced.add(price.product.sku)
+
+        self.priced_skus_cache[key] = priced
+        return priced
 
     def _map_product_class(self):
         match self.product_class:
@@ -179,6 +206,9 @@ class ExportProductsToMagento(MagentoExporter):
                         self.products_attributes_cache[sku].append(ca)
 
         for sku_missing_url_key in set(all_skus) - set(all_sku_url_keys):
+            if sku_missing_url_key not in self.products_attributes_cache:
+                self.products_attributes_cache[sku_missing_url_key] = []
+
             name = (
                 self.products_names_cache[sku_missing_url_key]
                 if sku_missing_url_key in self.products_names_cache
@@ -197,10 +227,18 @@ class ExportProductsToMagento(MagentoExporter):
         Buduje cache wszystkich website_ids dla każdego produktu ze WSZYSTKICH kanałów.
 
         Produkty przypisane do danego channela/sklepu otrzymują wszystkie websity z tego channela.
+        A store with check_prices=True adds its website only when the product has a price in
+        that store's currency and country (prices cached in bulk, no per-item queries in the loop).
         """
         print("Budowanie cache wszystkich websites dla produktów...")
 
-        channels = Channel.objects.all().prefetch_related("magento_stores")
+        # Reset per run -- exporter instances share the class attribute in a long-lived worker,
+        # and websites must be recomputed from scratch (e.g. a price vanished between runs).
+        self.products_websites_full_cache = {}
+
+        channels = Channel.objects.all().prefetch_related(
+            "magento_stores", "magento_stores__currency", "magento_stores__country"
+        )
 
         product_query = {"real_product__sku": self.product_id} if self.product_id else {}
         class_query = {"product_class": self._map_product_class()} if self.product_class else {}
@@ -219,7 +257,13 @@ class ExportProductsToMagento(MagentoExporter):
                     self.products_websites_full_cache[sku] = []
 
                 for store in stores:
-                    if store.magento_pk and store.magento_pk not in self.products_websites_full_cache[sku]:
+                    if not store.magento_pk:
+                        continue
+                    if store.check_prices and sku not in self._priced_skus(
+                        channel.idx, store.currency.iso3, store.country.iso2
+                    ):
+                        continue
+                    if store.magento_pk not in self.products_websites_full_cache[sku]:
                         self.products_websites_full_cache[sku].append(store.magento_pk)
 
         for sku in self.products_websites_full_cache:
@@ -260,6 +304,14 @@ class ExportProductsToMagento(MagentoExporter):
             )
             if price_gross:
                 self.products_prices_cache[price.product.sku] = round(Decimal(price_gross), 2)
+
+        # SKUs priced for THIS store -- used by check_prices in process_object.
+        # Memoized in _priced_skus, so stores with check_prices add no extra query.
+        self._current_store_priced_skus = (
+            self._priced_skus(store.channel.idx, store.currency.iso3, store.country.iso2)
+            if store.check_prices
+            else set()
+        )
 
     def _get_query_to_process(self, store):
         product_query = {"real_product__sku": self.product_id} if self.product_id else {}
@@ -317,6 +369,10 @@ class ExportProductsToMagento(MagentoExporter):
     def process_object(self, product: Product, store: MagentoStore):
         sku = product.real_product.sku
         self.logger.add_log_param("sku", sku)
+
+        if store.check_prices and sku not in self._current_store_priced_skus:
+            self.logger.info(f"Product {sku} has no price for store {store.store_view_code} - skipping (check_prices)")
+            return Status.SKIP
 
         name = self.products_names_cache.get(sku, None)
         self.logger.add_log_param("name", name)
