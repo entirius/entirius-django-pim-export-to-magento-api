@@ -1,7 +1,21 @@
 [project]
 name = "entirius-django-pim-export-to-magento-api"
 version = "2.1.0"
-description = "Products, prices, pictures, and attributes export from PIM to Magento via the Magento REST API"
+description = "Product catalog export from Entirius to a Magento 2 store: products, prices, pictures and attributes over REST"
+keywords = ["django", "magento", "magento2", "pim", "product-export", "ecommerce", "entirius"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
 authors = [{ name = "Entirius" }]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,7 +40,11 @@ dev  = ["ruff", "pre-commit"]
 test = ["pytest", "pytest-django", "psycopg[binary]"]
 
 [project.urls]
+Homepage = "https://docs.entirius.com/"
+Documentation = "https://github.com/entirius/entirius-django-pim-export-to-magento-api/tree/develop/docs"
 Repository = "https://github.com/entirius/entirius-django-pim-export-to-magento-api"
+Changelog = "https://github.com/entirius/entirius-django-pim-export-to-magento-api/releases"
+Issues = "https://github.com/entirius/entirius-django-pim-export-to-magento-api/issues"
 
 [build-system]
 requires = ["hatchling"]
