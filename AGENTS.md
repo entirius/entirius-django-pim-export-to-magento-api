@@ -4,9 +4,6 @@ Products, prices, pictures, and attributes export from PIM to Magento via the Ma
 distribution `entirius-django-pim-export-to-magento-api`, Django app
 `django_pim_export_to_magento_api`. Celery-driven, per-channel configuration.
 
-**Tech:** Python >=3.11, Django >=5.0, Celery, entirius-django-pim, entirius-django-pricemanager,
-entirius-py-magento2-sdk2
-
 ## Commands
 
 | Command | Meaning |
@@ -26,6 +23,7 @@ entirius-py-magento2-sdk2
   it is a schema contract.
 - Migrations are part of the public contract — never edit an already released migration.
 - Default: do not commit — git is the user's call.
+- No AI attribution in commits or PR descriptions.
 
 ## Architecture
 
@@ -42,11 +40,18 @@ Management Command / Celery task (per export type)
 | `models/channel.py` | `Channel` — per-Magento-instance export config (features, create options) |
 | `models/magento_store.py` | `MagentoStore` — PIM shop ↔ Magento store view mapping |
 | `models/export_in_magento.py` | `ExportInMagento` — per-product export state + `failed_message` |
-| `tasks/` | 6 celery tasks: products, prices, pictures, attributes, product-in-category, import-attributes |
+| `tasks/` | celery tasks: products, prices, pictures, attributes, import-attributes; `export_product_in_category_to_magento` is a plain function |
 | `management/commands/` | CLI wrappers for the tasks |
 | `admin/` | Django admin for the three models |
 | `exporter.py` | Magento API communication layer |
 | `settings.py` | `MAGENTO2_EXPORT_API_URL`, `MAGENTO2_EXPORT_API_TOKEN`, picture role/position mappings |
+
+Runtime: Python >=3.11, Django >=5.0, Celery (`celery-once`), `django_pim`, `django_pricemanager`, `django_regional`,
+`django_utils`, SDK `magento2_sdk2`. The command base class is `django_utils.workers.command.ChannelCeleryCommand`.
+
+| Topic | Where |
+|---|---|
+| Management commands and their options | `docs/commands.md` |
 
 ## Settings
 
@@ -64,4 +69,4 @@ Management Command / Celery task (per export type)
 - `tasks/__init__.py` imports all task modules eagerly — celery autodiscovery loads them, so all
   runtime dependencies (incl. `django_pricemanager`) must be installed in the host service.
 - Price export reads `django_pricemanager.output.get_price_qs_by_latest_pricelist` — hard dependency.
-- URL keys are generated for products missing them during export (since 1.8.0 of the private line).
+- URL keys are generated for products missing them during export.
